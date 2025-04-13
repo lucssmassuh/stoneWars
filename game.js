@@ -198,12 +198,16 @@ class Cloud {
     }
 }
 
-// Create clouds
+// Create more and bigger clouds
 const clouds = [
-    new Cloud(100, 50, 20),
-    new Cloud(300, 80, 25),
-    new Cloud(500, 40, 30),
-    new Cloud(700, 70, 22)
+    new Cloud(100, 50, 30),
+    new Cloud(300, 80, 35),
+    new Cloud(500, 40, 40),
+    new Cloud(700, 70, 32),
+    new Cloud(200, 120, 25),
+    new Cloud(400, 90, 28),
+    new Cloud(600, 60, 38),
+    new Cloud(800, 100, 30)
 ];
 
 // Draw functions
@@ -622,7 +626,31 @@ function updateMuzzleFlashes() {
     }
 }
 
-// Update drawMountain function to scale with canvas size
+// Add sun drawing function
+function drawSun() {
+    const sunX = canvas.width * 0.8;
+    const sunY = canvas.height * 0.2;
+    const sunRadius = 50;
+    
+    // Sun glow
+    const gradient = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius * 2);
+    gradient.addColorStop(0, 'rgba(255, 255, 0, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 200, 0, 0.4)');
+    gradient.addColorStop(1, 'rgba(255, 150, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunRadius * 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Sun core
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Update drawMountain function for bigger mountains
 function drawMountain(x, width, height) {
     const gradient = ctx.createLinearGradient(x, canvas.height * 0.6, x + width, canvas.height * 0.6);
     gradient.addColorStop(0, '#90EE90');
@@ -660,28 +688,32 @@ function gameLoop() {
     ctx.fillStyle = skyGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Draw sun
+    drawSun();
+    
     // Draw clouds
     clouds.forEach(cloud => {
         cloud.update();
         cloud.draw(ctx);
     });
 
-    // Draw left mountain
-    drawMountain(canvas.width * 0.05, canvas.width * 0.2, canvas.height * 0.25);
-    // Draw right mountain
-    drawMountain(canvas.width * 0.75, canvas.width * 0.2, canvas.height * 0.25);
-    
-    // Draw ground layers
-    // Brown ground
+    // Draw ground layers with bigger areas
+    // Brown ground (bigger)
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
+    ctx.fillRect(0, canvas.height * 0.85, canvas.width, canvas.height * 0.15);
     
-    // Green grass
-    const grassGradient = ctx.createLinearGradient(0, canvas.height * 0.5, 0, canvas.height * 0.6);
+    // Green grass (extended to mountains)
+    const grassGradient = ctx.createLinearGradient(0, canvas.height * 0.4, 0, canvas.height * 0.85);
     grassGradient.addColorStop(0, '#228B22');
     grassGradient.addColorStop(1, '#006400');
     ctx.fillStyle = grassGradient;
-    ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.1);
+    ctx.fillRect(0, canvas.height * 0.4, canvas.width, canvas.height * 0.45);
+    
+    // Draw more and bigger mountains
+    drawMountain(canvas.width * 0.05, canvas.width * 0.25, canvas.height * 0.35);
+    drawMountain(canvas.width * 0.75, canvas.width * 0.25, canvas.height * 0.35);
+    drawMountain(canvas.width * 0.2, canvas.width * 0.2, canvas.height * 0.3);
+    drawMountain(canvas.width * 0.6, canvas.width * 0.2, canvas.height * 0.3);
     
     drawScore();
     drawCastle(leftCastle);
