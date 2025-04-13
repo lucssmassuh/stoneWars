@@ -72,12 +72,17 @@ let explosions = []; // Array to store active explosions
 let fallingStones = []; // Array to store stones that are falling
 let muzzleFlashes = []; // Array to store active muzzle flashes
 
+// Get the cannon sound element
+const cannonSound = document.getElementById('cannonSound');
+const impactSound = document.getElementById('impactSound');
+const explosionSound = document.getElementById('explosionSound');
+
 // Function to update positions based on canvas size
 function updatePositions() {
     // Update castle positions - placing them closer to the edges
-    leftCastle.x = canvas.width * 0.05;
+    leftCastle.x = canvas.width * 0.02;
     leftCastle.y = canvas.height * 0.65;
-    rightCastle.x = canvas.width * 0.85;
+    rightCastle.x = canvas.width * 0.88;
     rightCastle.y = canvas.height * 0.65;
 
     // Update castle sizes - making them 50% bigger
@@ -90,10 +95,10 @@ function updatePositions() {
     // Calculate position 9% from the bottom of the screen
     const bottomPosition = canvas.height * 0.91; // Changed from 0.93 to 0.91 for 9% from bottom
 
-    // Update catapult positions - placing them 9% from the bottom
-    leftCatapult.x = canvas.width * 0.1;
+    // Update catapult positions - placing them in front of each castle
+    leftCatapult.x = leftCastle.x + leftCastle.width + 20; // 20 pixels in front of left castle
     leftCatapult.y = bottomPosition;
-    rightCatapult.x = canvas.width * 0.9;
+    rightCatapult.x = rightCastle.x - 20; // 20 pixels in front of right castle
     rightCatapult.y = bottomPosition;
 }
 
@@ -674,6 +679,26 @@ function drawMountain(x, width, height) {
     ctx.fill();
 }
 
+// Update the shouldStoneFall function to play explosion sound
+function shouldStoneFall(castle, index) {
+    const row = Math.floor(index / castle.stonesPerRow);
+    const col = index % castle.stonesPerRow;
+    
+    // Bottom row stones always have support
+    if (row === castle.rows - 1) return false;
+    
+    // Check if stone below exists
+    const stoneBelow = castle.stones[index + castle.stonesPerRow];
+    if (!stoneBelow) {
+        // Play explosion sound when stone should fall
+        explosionSound.currentTime = 0;
+        explosionSound.play();
+        return true;
+    }
+    
+    return false;
+}
+
 // Game loop
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -730,10 +755,87 @@ function gameLoop() {
     fallingStones.forEach(stone => stone.draw(ctx));
     muzzleFlashes.forEach(flash => flash.draw(ctx));
     
-    // Check game over
-    if (leftCastle.health <= 0 || rightCastle.health <= 0) {
-        alert(`Game Over! ${leftCastle.health <= 0 ? 'Player 2' : 'Player 1'} wins!\nFinal Score:\nPlayer 1: ${leftScore}\nPlayer 2: ${rightScore}`);
-        location.reload();
+    // Check game over - all stones must be destroyed
+    let leftStonesRemaining = 0;
+    let rightStonesRemaining = 0;
+    
+    // Count remaining stones in left castle
+    for (let row = 0; row < leftCastle.stones.length; row++) {
+        for (let col = 0; col < leftCastle.stones[row].length; col++) {
+            if (leftCastle.stones[row][col]) {
+                leftStonesRemaining++;
+            }
+        }
+    }
+    
+    // Count remaining stones in right castle
+    for (let row = 0; row < rightCastle.stones.length; row++) {
+        for (let col = 0; col < rightCastle.stones[row].length; col++) {
+            if (rightCastle.stones[row][col]) {
+                rightStonesRemaining++;
+            }
+        }
+    }
+    
+    // Only check for game over if there are no falling stones
+    if (fallingStones.length === 0 && (leftStonesRemaining === 0 || rightStonesRemaining === 0)) {
+        // Create and show banner
+        const banner = document.createElement('div');
+        banner.style.position = 'fixed';
+        banner.style.top = '50%';
+        banner.style.left = '50%';
+        banner.style.transform = 'translate(-50%, -50%)';
+        banner.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        banner.style.padding = '20px';
+        banner.style.borderRadius = '10px';
+        banner.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+        banner.style.zIndex = '1000';
+        banner.style.textAlign = 'center';
+        banner.style.fontFamily = 'Arial, sans-serif';
+        banner.style.fontSize = '16px';
+        banner.style.color = '#00008B';
+        banner.style.cursor = 'pointer';
+        
+        const winner = leftStonesRemaining === 0 ? 'Player 2' : 'Player 1';
+        banner.innerHTML = `
+            <h2 style="margin: 0 0 10px 0; font-size: 24px; color: #00008B;">Game Over!</h2>
+            <p style="margin: 0 0 5px 0;">${winner} wins!</p>
+            <p style="margin: 0 0 5px 0;">Final Score:</p>
+            <p style="margin: 0 0 5px 0;">Player 1: ${leftScore}</p>
+            <p style="margin: 0 0 5px 0;">Player 2: ${rightScore}</p>
+            <p style="margin: 10px 0 0 0; font-size: 14px;">Click anywhere to restart</p>
+        `;
+        
+        document.body.appendChild(banner);
+        
+        // Add click event listener to the banner
+        banner.addEventListener('click', () => {
+            banner.remove();
+            // Reset all game state
+            leftCastle.stones = [
+                [1,0,1,0,1,0,1],
+                [1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1]
+            ];
+            rightCastle.stones = [
+                [1,0,1,0,1,0,1],
+                [1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1]
+            ];
+            leftCastle.health = 100;
+            rightCastle.health = 100;
+            leftScore = 0;
+            rightScore = 0;
+            currentPlayer = 'left';
+            currentRound = 1;
+            projectiles = [];
+            explosions = [];
+            fallingStones = [];
+            muzzleFlashes = [];
+            canShoot = true;
+        });
     }
     
     requestAnimationFrame(gameLoop);
@@ -779,6 +881,10 @@ document.addEventListener('keyup', (e) => {
             const chargeTime = Date.now() - currentCatapult.chargeStart;
             currentCatapult.power = Math.min(chargeTime / 10, currentCatapult.maxPower);
             currentCatapult.charging = false;
+            
+            // Play cannon sound
+            cannonSound.currentTime = 0; // Reset sound to start
+            cannonSound.play();
             
             // Calculate position at the tip of the cannon barrel
             const angle = currentCatapult.angle * Math.PI / 180;
