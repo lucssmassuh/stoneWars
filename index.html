@@ -7,21 +7,20 @@
     <style>
         body {
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(to bottom, #87CEEB, #1E90FF);
+            padding: 0;
             overflow: hidden;
+            background: linear-gradient(to bottom, #87CEEB, #1E90FF);
         }
         canvas {
-            border: 2px solid #333;
+            display: block;
+            width: 100vw;
+            height: 100vh;
             background: linear-gradient(to bottom, #4CAF50, #2E7D32);
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <script src="game.js"></script>
 </body>
 </html> 

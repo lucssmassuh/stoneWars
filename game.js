@@ -1,10 +1,22 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Function to resize canvas to window size
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+// Initial resize
+resizeCanvas();
+
+// Add resize event listener
+window.addEventListener('resize', resizeCanvas);
+
 // Game objects
 const leftCastle = {
-    x: 10,
-    y: 250,
+    x: 0,
+    y: 0,
     width: 140,
     height: 150,
     stones: [
@@ -17,8 +29,8 @@ const leftCastle = {
 };
 
 const rightCastle = {
-    x: 650,
-    y: 250,
+    x: 0,
+    y: 0,
     width: 140,
     height: 150,
     stones: [
@@ -31,9 +43,9 @@ const rightCastle = {
 };
 
 const leftCatapult = {
-    x: 50, // Positioned near the left mountain peak
-    y: 170, // Just below the mountain peak (peak is at 150)
-    angle: -45, // Start at -45 degrees
+    x: 0,
+    y: 0,
+    angle: -45,
     power: 0,
     maxPower: 150,
     charging: false,
@@ -41,9 +53,9 @@ const leftCatapult = {
 };
 
 const rightCatapult = {
-    x: 750, // Positioned near the right mountain peak
-    y: 170, // Just below the mountain peak (peak is at 150)
-    angle: 225, // Start at 225 degrees (mirrored from -45)
+    x: 0,
+    y: 0,
+    angle: 225,
     power: 0,
     maxPower: 150,
     charging: false,
@@ -59,8 +71,31 @@ let currentRound = 1;
 let explosions = []; // Array to store active explosions
 let fallingStones = []; // Array to store stones that are falling
 let muzzleFlashes = []; // Array to store active muzzle flashes
-let showRoundIndicator = true;
-let shotsInRound = 0;
+
+// Function to update positions based on canvas size
+function updatePositions() {
+    // Update castle positions - placing them closer to the edges
+    leftCastle.x = canvas.width * 0.05;
+    leftCastle.y = canvas.height * 0.65;
+    rightCastle.x = canvas.width * 0.85;
+    rightCastle.y = canvas.height * 0.65;
+
+    // Update castle sizes - making them 50% bigger
+    const baseSize = Math.min(canvas.width, canvas.height) * 0.22;
+    leftCastle.width = baseSize;
+    leftCastle.height = baseSize * 1.2;
+    rightCastle.width = baseSize;
+    rightCastle.height = baseSize * 1.2;
+
+    // Calculate position 9% from the bottom of the screen
+    const bottomPosition = canvas.height * 0.91; // Changed from 0.93 to 0.91 for 9% from bottom
+
+    // Update catapult positions - placing them 9% from the bottom
+    leftCatapult.x = canvas.width * 0.1;
+    leftCatapult.y = bottomPosition;
+    rightCatapult.x = canvas.width * 0.9;
+    rightCatapult.y = bottomPosition;
+}
 
 // Explosion particle class
 class ExplosionParticle {
@@ -203,9 +238,9 @@ function drawCastle(castle) {
 function drawCatapult(catapult) {
     // Draw wheels
     ctx.fillStyle = '#4A4A4A';
-    const backWheelRadius = 8;
-    const frontWheelRadius = 16; // 2 times bigger than back wheel
-    const floorY = catapult.y + 30; // Position relative to the mountain slope
+    const backWheelRadius = 12;
+    const frontWheelRadius = 24;
+    const floorY = catapult.y; // Use catapult.y directly as floor level
     const backWheelY = floorY - backWheelRadius;
     const frontWheelY = floorY - frontWheelRadius;
     
@@ -233,7 +268,7 @@ function drawCatapult(catapult) {
     
     // Draw base
     ctx.fillStyle = '#4A4A4A';
-    ctx.fillRect(backWheelX - 20, backWheelY - 5, 40, 10);
+    ctx.fillRect(backWheelX - 30, backWheelY - 5, 60, 10);
     
     // Draw cannon body
     ctx.save();
@@ -242,11 +277,11 @@ function drawCatapult(catapult) {
     
     // Cannon barrel
     ctx.fillStyle = '#333';
-    ctx.fillRect(0, -5, 40, 10);
+    ctx.fillRect(0, -5, 60, 10);
     
     // Cannon tip
     ctx.fillStyle = '#666';
-    ctx.fillRect(40, -7, 10, 14);
+    ctx.fillRect(60, -7, 15, 14);
     
     ctx.restore();
     
@@ -268,11 +303,12 @@ function drawCatapult(catapult) {
         ctx.stroke();
     }
     
-    // Draw power meter only when charging
+    // Draw power meter and trajectory prediction only when charging
     if (catapult.charging) {
         // Calculate current power in real-time
         const currentPower = Math.min((Date.now() - catapult.chargeStart) / 10, catapult.maxPower);
         
+        // Draw power meter
         ctx.fillStyle = 'red';
         ctx.fillRect(backWheelX - 20, backWheelY - 30, 40, 10);
         ctx.fillStyle = 'green';
@@ -286,7 +322,7 @@ function drawCatapult(catapult) {
 
         // Draw trajectory prediction
         const angle = catapult.angle * Math.PI / 180;
-        const barrelLength = 50;
+        const barrelLength = 60;
         const startX = backWheelX + Math.cos(angle) * barrelLength;
         const startY = backWheelY - 5 + Math.sin(angle) * barrelLength;
         const power = currentPower / 5;
@@ -298,8 +334,8 @@ function drawCatapult(catapult) {
         let vy = Math.sin(angle) * power;
         const gravity = 0.2;
         const screenMiddle = canvas.width / 2;
-        const fadeStartDistance = 200; // Start fading earlier
-        const dotSpacing = 20; // Space between dots
+        const fadeStartDistance = 200;
+        const dotSpacing = 20;
         let distanceTraveled = 0;
         
         for (let t = 0; t < 60; t++) { // 60 frames = 1 second
@@ -309,7 +345,7 @@ function drawCatapult(catapult) {
             distanceTraveled += Math.sqrt(vx * vx + vy * vy);
             
             // Stop if we hit the ground
-            if (y > 350) break;
+            if (y > floorY) break;
             
             // Only draw a dot at specified intervals
             if (distanceTraveled >= dotSpacing) {
@@ -323,8 +359,8 @@ function drawCatapult(catapult) {
                 
                 // Draw dot
                 ctx.beginPath();
-                ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.3})`;
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
                 ctx.fill();
                 
                 distanceTraveled = 0; // Reset distance counter
@@ -359,20 +395,20 @@ function calculateCastleHealth(castle) {
 }
 
 function drawScore() {
-    ctx.fillStyle = '#00008B'; // Dark blue color
-    ctx.font = '20px Arial';
+    ctx.fillStyle = '#00008B';
+    ctx.font = `${Math.min(canvas.width, canvas.height) * 0.02}px Arial`;
     ctx.textAlign = 'center';
     
     // Always show round indicator
-    ctx.fillText(`Round ${currentRound}`, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(`Round ${currentRound}`, canvas.width / 2, canvas.height * 0.1);
     
     // Draw left player score and stones
-    ctx.fillText(`Player 1: ${leftScore}`, 200, 30);
+    ctx.fillText(`Player 1: ${leftScore}`, canvas.width * 0.2, canvas.height * 0.1);
     
     // Draw stone indicators for left player
-    const stoneSize = 6;
-    const stoneSpacing = 2;
-    const startY = 50; // Position below the score
+    const stoneSize = Math.min(canvas.width, canvas.height) * 0.008;
+    const stoneSpacing = stoneSize * 0.3;
+    const startY = canvas.height * 0.12;
     
     // Count total stones for left player
     let totalLeftStones = 0;
@@ -386,18 +422,18 @@ function drawScore() {
     
     // Calculate total width of stone indicators
     const totalWidth = (totalLeftStones * stoneSize) + ((totalLeftStones - 1) * stoneSpacing);
-    const startX = 200 - (totalWidth / 2); // Center the stones below the score
+    const startX = canvas.width * 0.2 - (totalWidth / 2);
     
     // Draw stones in a single row for left player
     for (let i = 0; i < totalLeftStones; i++) {
         const x = startX + i * (stoneSize + stoneSpacing);
-        ctx.fillStyle = '#006400'; // Dark green color
+        ctx.fillStyle = '#006400';
         ctx.fillRect(x, startY, stoneSize, stoneSize);
     }
     
     // Draw right player score and stones
-    ctx.fillStyle = '#00008B'; // Dark blue color
-    ctx.fillText(`Player 2: ${rightScore}`, 600, 30);
+    ctx.fillStyle = '#00008B';
+    ctx.fillText(`Player 2: ${rightScore}`, canvas.width * 0.8, canvas.height * 0.1);
     
     // Count total stones for right player
     let totalRightStones = 0;
@@ -411,12 +447,12 @@ function drawScore() {
     
     // Calculate total width of stone indicators
     const totalRightWidth = (totalRightStones * stoneSize) + ((totalRightStones - 1) * stoneSpacing);
-    const rightStartX = 600 - (totalRightWidth / 2); // Center the stones below the score
+    const rightStartX = canvas.width * 0.8 - (totalRightWidth / 2);
     
     // Draw stones in a single row for right player
     for (let i = 0; i < totalRightStones; i++) {
         const x = rightStartX + i * (stoneSize + stoneSpacing);
-        ctx.fillStyle = '#006400'; // Dark green color
+        ctx.fillStyle = '#006400';
         ctx.fillRect(x, startY, stoneSize, stoneSize);
     }
 }
@@ -430,10 +466,9 @@ function updateProjectiles() {
         p.vy += 0.2; // Gravity
 
         // Check collision with castles
-        const checkCastleCollision = (castle) => {
+        const checkCastleCollision = (castle, isLeftCastle) => {
             const stoneWidth = castle.width / 7;
             const stoneHeight = castle.height / 4;
-            let stonesDestroyed = 0;
             
             for (let row = 0; row < 4; row++) {
                 for (let col = 0; col < 7; col++) {
@@ -447,7 +482,6 @@ function updateProjectiles() {
                             createExplosion(stoneX + stoneWidth/2, stoneY + stoneHeight/2);
                             castle.stones[row][col] = 0;
                             castle.health -= 5;
-                            stonesDestroyed++;
                             
                             // Check and explode stones above with delay
                             for (let aboveRow = row - 1; aboveRow >= 0; aboveRow--) {
@@ -462,40 +496,36 @@ function updateProjectiles() {
                                     // Remove the stone from the castle
                                     castle.stones[aboveRow][col] = 0;
                                     castle.health -= 5;
-                                    stonesDestroyed++;
                                 } else {
                                     break; // Stop if we hit an empty space
                                 }
                             }
                             
-                            return stonesDestroyed;
+                            return true;
                         }
                     }
                 }
             }
-            return 0;
+            return false;
         };
 
-        const rightStonesDestroyed = checkCastleCollision(rightCastle);
-        if (rightStonesDestroyed > 0) {
-            leftScore += rightStonesDestroyed * 5;
-            projectiles.splice(i, 1);
+        // Only check collision with the opponent's castle based on who fired the projectile
+        if (p.firedBy === 'left') {
+            // Left player's projectile - only check right castle
+            if (checkCastleCollision(rightCastle, false)) {
+                leftScore += 5;
+                projectiles.splice(i, 1);
+            }
         } else {
-            const leftStonesDestroyed = checkCastleCollision(leftCastle);
-            if (leftStonesDestroyed > 0) {
-                rightScore += leftStonesDestroyed * 5;
+            // Right player's projectile - only check left castle
+            if (checkCastleCollision(leftCastle, true)) {
+                rightScore += 5;
                 projectiles.splice(i, 1);
             }
         }
 
         // Remove if out of bounds
         if (p.y > canvas.height || p.x < 0 || p.x > canvas.width) {
-            // If this was Player 2's projectile, end the round
-            if (p.player === 'right' && shotsInRound === 2) {
-                currentPlayer = 'left'; // Reset to Player 1
-                currentRound++;
-                shotsInRound = 0;
-            }
             projectiles.splice(i, 1);
         }
     }
@@ -527,14 +557,6 @@ function updateFallingStones() {
             const stoneWidth = stone.castle.width / 7;
             const stoneHeight = stone.castle.height / 4;
             createExplosion(stone.x + stoneWidth/2, stone.y + stoneHeight/2);
-            
-            // Award points for the fallen stone
-            if (stone.castle === rightCastle) {
-                leftScore += 5;
-            } else {
-                rightScore += 5;
-            }
-            
             fallingStones.splice(i, 1);
         }
     }
@@ -593,14 +615,41 @@ function updateMuzzleFlashes() {
     }
 }
 
+// Update drawMountain function to scale with canvas size
+function drawMountain(x, width, height) {
+    const gradient = ctx.createLinearGradient(x, canvas.height * 0.6, x + width, canvas.height * 0.6);
+    gradient.addColorStop(0, '#90EE90');
+    gradient.addColorStop(1, '#98FB98');
+    ctx.fillStyle = gradient;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, canvas.height * 0.6);
+    ctx.lineTo(x + width/2, canvas.height * 0.6 - height);
+    ctx.lineTo(x + width, canvas.height * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Add snow cap
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.moveTo(x + width/2 - width * 0.1, canvas.height * 0.6 - height + height * 0.15);
+    ctx.lineTo(x + width/2, canvas.height * 0.6 - height);
+    ctx.lineTo(x + width/2 + width * 0.1, canvas.height * 0.6 - height + height * 0.15);
+    ctx.closePath();
+    ctx.fill();
+}
+
 // Game loop
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Update positions based on current canvas size
+    updatePositions();
+    
     // Draw sky
     const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#87CEEB'); // Light blue
-    skyGradient.addColorStop(1, '#1E90FF'); // Darker blue
+    skyGradient.addColorStop(0, '#87CEEB');
+    skyGradient.addColorStop(1, '#1E90FF');
     ctx.fillStyle = skyGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
@@ -610,46 +659,22 @@ function gameLoop() {
         cloud.draw(ctx);
     });
 
-    // Draw mountains
-    function drawMountain(x, width, height) {
-        const gradient = ctx.createLinearGradient(x, 300, x + width, 300);
-        gradient.addColorStop(0, '#90EE90'); // Light green
-        gradient.addColorStop(1, '#98FB98'); // Pale green
-        ctx.fillStyle = gradient;
-        
-        ctx.beginPath();
-        ctx.moveTo(x, 300);
-        ctx.lineTo(x + width/2, 300 - height);
-        ctx.lineTo(x + width, 300);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Add snow cap
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.moveTo(x + width/2 - 30, 300 - height + 30);
-        ctx.lineTo(x + width/2, 300 - height);
-        ctx.lineTo(x + width/2 + 30, 300 - height + 30);
-        ctx.closePath();
-        ctx.fill();
-    }
-
     // Draw left mountain
-    drawMountain(-100, 300, 200);
+    drawMountain(canvas.width * 0.05, canvas.width * 0.2, canvas.height * 0.25);
     // Draw right mountain
-    drawMountain(600, 300, 200);
+    drawMountain(canvas.width * 0.75, canvas.width * 0.2, canvas.height * 0.25);
     
     // Draw ground layers
     // Brown ground
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, 350, canvas.width, 50);
+    ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
     
     // Green grass
-    const grassGradient = ctx.createLinearGradient(0, 300, 0, 350);
-    grassGradient.addColorStop(0, '#228B22'); // Forest green
-    grassGradient.addColorStop(1, '#006400'); // Dark green
+    const grassGradient = ctx.createLinearGradient(0, canvas.height * 0.5, 0, canvas.height * 0.6);
+    grassGradient.addColorStop(0, '#228B22');
+    grassGradient.addColorStop(1, '#006400');
     ctx.fillStyle = grassGradient;
-    ctx.fillRect(0, 300, canvas.width, 50);
+    ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.1);
     
     drawScore();
     drawCastle(leftCastle);
@@ -718,9 +743,9 @@ document.addEventListener('keyup', (e) => {
             
             // Calculate position at the tip of the cannon barrel
             const angle = currentCatapult.angle * Math.PI / 180;
-            const barrelLength = 50; // Total length of the barrel (40 + 10 for the tip)
-            const floorY = currentCatapult.y + 30;
-            const backWheelRadius = 8;
+            const barrelLength = 60; // Length of the barrel
+            const floorY = currentCatapult.y;
+            const backWheelRadius = 12;
             const cannonBaseY = floorY - backWheelRadius - 5;
             
             // Calculate the position of the cannon tip
@@ -738,21 +763,12 @@ document.addEventListener('keyup', (e) => {
                 y: flashY,
                 vx: Math.cos(angle) * power,
                 vy: Math.sin(angle) * power,
-                player: currentPlayer // Track which player fired the projectile
+                firedBy: currentPlayer // Track which player fired the projectile
             });
             
             canShoot = false;
-            shotsInRound++;
-            
-            // Switch players after each shot
             currentPlayer = currentPlayer === 'left' ? 'right' : 'left';
-            
-            // If both players have shot, increment round and reset
-            if (shotsInRound === 2) {
-                currentRound++;
-                shotsInRound = 0;
-            }
-            
+            currentRound++;
             setTimeout(() => {
                 canShoot = true;
             }, 1000);
