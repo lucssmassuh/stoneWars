@@ -270,18 +270,25 @@ function drawCatapult(catapult) {
     ctx.fillStyle = '#4A4A4A';
     ctx.fillRect(backWheelX - 30, backWheelY - 5, 60, 10);
     
-    // Draw cannon body
+    // Calculate recoil offset based on power
+    let recoilOffset = 0;
+    if (catapult.charging) {
+        const currentPower = Math.min((Date.now() - catapult.chargeStart) / 10, catapult.maxPower);
+        recoilOffset = (currentPower / catapult.maxPower) * 15; // Max 15 pixels of recoil
+    }
+    
+    // Draw cannon body with recoil
     ctx.save();
     ctx.translate(backWheelX, backWheelY - 5);
     ctx.rotate(catapult.angle * Math.PI / 180);
     
     // Cannon barrel
     ctx.fillStyle = '#333';
-    ctx.fillRect(0, -5, 60, 10);
+    ctx.fillRect(-recoilOffset, -5, 60, 10);
     
     // Cannon tip
     ctx.fillStyle = '#666';
-    ctx.fillRect(60, -7, 15, 14);
+    ctx.fillRect(60 - recoilOffset, -7, 15, 14);
     
     ctx.restore();
     
@@ -323,8 +330,8 @@ function drawCatapult(catapult) {
         // Draw trajectory prediction
         const angle = catapult.angle * Math.PI / 180;
         const barrelLength = 60;
-        const startX = backWheelX + Math.cos(angle) * barrelLength;
-        const startY = backWheelY - 5 + Math.sin(angle) * barrelLength;
+        const startX = backWheelX + Math.cos(angle) * (barrelLength - recoilOffset);
+        const startY = backWheelY - 5 + Math.sin(angle) * (barrelLength - recoilOffset);
         const power = currentPower / 5;
         
         // Simulate trajectory for 1 second
@@ -569,7 +576,7 @@ class MuzzleFlash {
         this.y = y;
         this.angle = angle;
         this.life = 1.0;
-        this.size = 15;
+        this.size = 25; // Increased from 15 to 25
     }
 
     update() {
@@ -584,7 +591,7 @@ class MuzzleFlash {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle * Math.PI / 180);
         
-        // Draw flash
+        // Draw flash with larger size
         const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
         gradient.addColorStop(0, 'rgba(255, 255, 0, ' + this.life + ')');
         gradient.addColorStop(0.5, 'rgba(255, 165, 0, ' + this.life * 0.7 + ')');
@@ -595,7 +602,7 @@ class MuzzleFlash {
         ctx.arc(0, 0, this.size, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw smoke
+        // Draw smoke with larger size
         ctx.fillStyle = 'rgba(100, 100, 100, ' + this.life * 0.5 + ')';
         ctx.beginPath();
         ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
@@ -748,9 +755,9 @@ document.addEventListener('keyup', (e) => {
             const backWheelRadius = 12;
             const cannonBaseY = floorY - backWheelRadius - 5;
             
-            // Calculate the position of the cannon tip
-            const flashX = currentCatapult.x + Math.cos(angle) * barrelLength;
-            const flashY = cannonBaseY + Math.sin(angle) * barrelLength;
+            // Calculate the position of the cannon tip, adding extra length for the flash
+            const flashX = currentCatapult.x + (currentCatapult === rightCatapult ? 10 : -10) + Math.cos(angle) * (barrelLength + 20);
+            const flashY = cannonBaseY + Math.sin(angle) * (barrelLength + 20);
             
             // Create muzzle flash at the tip
             muzzleFlashes.push(new MuzzleFlash(flashX, flashY, currentCatapult.angle));
