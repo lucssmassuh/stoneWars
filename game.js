@@ -59,6 +59,8 @@ let currentRound = 1;
 let explosions = []; // Array to store active explosions
 let fallingStones = []; // Array to store stones that are falling
 let muzzleFlashes = []; // Array to store active muzzle flashes
+let showRoundIndicator = true;
+let shotsInRound = 0;
 
 // Explosion particle class
 class ExplosionParticle {
@@ -338,26 +340,85 @@ function drawProjectile(projectile) {
     ctx.fill();
 }
 
+function calculateCastleHealth(castle) {
+    let totalStones = 0;
+    let remainingStones = 0;
+    
+    // Count total stones and remaining stones
+    for (let row = 0; row < castle.stones.length; row++) {
+        for (let col = 0; col < castle.stones[row].length; col++) {
+            if (castle.stones[row][col]) {
+                totalStones++;
+                remainingStones++;
+            }
+        }
+    }
+    
+    // Calculate health percentage based on remaining stones
+    return totalStones > 0 ? (remainingStones / totalStones) * 100 : 0;
+}
+
 function drawScore() {
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = '#00008B'; // Dark blue color
     ctx.font = '20px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`Round ${currentRound}`, 400, 30);
     
-    // Draw left player score and health
+    // Always show round indicator
+    ctx.fillText(`Round ${currentRound}`, canvas.width / 2, canvas.height / 2);
+    
+    // Draw left player score and stones
     ctx.fillText(`Player 1: ${leftScore}`, 200, 30);
-    ctx.fillStyle = 'red';
-    ctx.fillRect(150, 40, 100, 10);
-    ctx.fillStyle = 'green';
-    ctx.fillRect(150, 40, 100 * (leftCastle.health / 100), 10);
     
-    // Draw right player score and health
-    ctx.fillStyle = 'white';
+    // Draw stone indicators for left player
+    const stoneSize = 6;
+    const stoneSpacing = 2;
+    const startY = 50; // Position below the score
+    
+    // Count total stones for left player
+    let totalLeftStones = 0;
+    for (let row = 0; row < leftCastle.stones.length; row++) {
+        for (let col = 0; col < leftCastle.stones[row].length; col++) {
+            if (leftCastle.stones[row][col]) {
+                totalLeftStones++;
+            }
+        }
+    }
+    
+    // Calculate total width of stone indicators
+    const totalWidth = (totalLeftStones * stoneSize) + ((totalLeftStones - 1) * stoneSpacing);
+    const startX = 200 - (totalWidth / 2); // Center the stones below the score
+    
+    // Draw stones in a single row for left player
+    for (let i = 0; i < totalLeftStones; i++) {
+        const x = startX + i * (stoneSize + stoneSpacing);
+        ctx.fillStyle = '#006400'; // Dark green color
+        ctx.fillRect(x, startY, stoneSize, stoneSize);
+    }
+    
+    // Draw right player score and stones
+    ctx.fillStyle = '#00008B'; // Dark blue color
     ctx.fillText(`Player 2: ${rightScore}`, 600, 30);
-    ctx.fillStyle = 'red';
-    ctx.fillRect(550, 40, 100, 10);
-    ctx.fillStyle = 'green';
-    ctx.fillRect(550, 40, 100 * (rightCastle.health / 100), 10);
+    
+    // Count total stones for right player
+    let totalRightStones = 0;
+    for (let row = 0; row < rightCastle.stones.length; row++) {
+        for (let col = 0; col < rightCastle.stones[row].length; col++) {
+            if (rightCastle.stones[row][col]) {
+                totalRightStones++;
+            }
+        }
+    }
+    
+    // Calculate total width of stone indicators
+    const totalRightWidth = (totalRightStones * stoneSize) + ((totalRightStones - 1) * stoneSpacing);
+    const rightStartX = 600 - (totalRightWidth / 2); // Center the stones below the score
+    
+    // Draw stones in a single row for right player
+    for (let i = 0; i < totalRightStones; i++) {
+        const x = rightStartX + i * (stoneSize + stoneSpacing);
+        ctx.fillStyle = '#006400'; // Dark green color
+        ctx.fillRect(x, startY, stoneSize, stoneSize);
+    }
 }
 
 // Physics
@@ -372,6 +433,7 @@ function updateProjectiles() {
         const checkCastleCollision = (castle) => {
             const stoneWidth = castle.width / 7;
             const stoneHeight = castle.height / 4;
+            let stonesDestroyed = 0;
             
             for (let row = 0; row < 4; row++) {
                 for (let col = 0; col < 7; col++) {
@@ -385,6 +447,7 @@ function updateProjectiles() {
                             createExplosion(stoneX + stoneWidth/2, stoneY + stoneHeight/2);
                             castle.stones[row][col] = 0;
                             castle.health -= 5;
+                            stonesDestroyed++;
                             
                             // Check and explode stones above with delay
                             for (let aboveRow = row - 1; aboveRow >= 0; aboveRow--) {
@@ -399,29 +462,40 @@ function updateProjectiles() {
                                     // Remove the stone from the castle
                                     castle.stones[aboveRow][col] = 0;
                                     castle.health -= 5;
+                                    stonesDestroyed++;
                                 } else {
                                     break; // Stop if we hit an empty space
                                 }
                             }
                             
-                            return true;
+                            return stonesDestroyed;
                         }
                     }
                 }
             }
-            return false;
+            return 0;
         };
 
-        if (checkCastleCollision(rightCastle)) {
-            leftScore += 5;
+        const rightStonesDestroyed = checkCastleCollision(rightCastle);
+        if (rightStonesDestroyed > 0) {
+            leftScore += rightStonesDestroyed * 5;
             projectiles.splice(i, 1);
-        } else if (checkCastleCollision(leftCastle)) {
-            rightScore += 5;
-            projectiles.splice(i, 1);
+        } else {
+            const leftStonesDestroyed = checkCastleCollision(leftCastle);
+            if (leftStonesDestroyed > 0) {
+                rightScore += leftStonesDestroyed * 5;
+                projectiles.splice(i, 1);
+            }
         }
 
         // Remove if out of bounds
         if (p.y > canvas.height || p.x < 0 || p.x > canvas.width) {
+            // If this was Player 2's projectile, end the round
+            if (p.player === 'right' && shotsInRound === 2) {
+                currentPlayer = 'left'; // Reset to Player 1
+                currentRound++;
+                shotsInRound = 0;
+            }
             projectiles.splice(i, 1);
         }
     }
@@ -453,6 +527,14 @@ function updateFallingStones() {
             const stoneWidth = stone.castle.width / 7;
             const stoneHeight = stone.castle.height / 4;
             createExplosion(stone.x + stoneWidth/2, stone.y + stoneHeight/2);
+            
+            // Award points for the fallen stone
+            if (stone.castle === rightCastle) {
+                leftScore += 5;
+            } else {
+                rightScore += 5;
+            }
+            
             fallingStones.splice(i, 1);
         }
     }
@@ -655,12 +737,22 @@ document.addEventListener('keyup', (e) => {
                 x: flashX,
                 y: flashY,
                 vx: Math.cos(angle) * power,
-                vy: Math.sin(angle) * power
+                vy: Math.sin(angle) * power,
+                player: currentPlayer // Track which player fired the projectile
             });
             
             canShoot = false;
+            shotsInRound++;
+            
+            // Switch players after each shot
             currentPlayer = currentPlayer === 'left' ? 'right' : 'left';
-            currentRound++;
+            
+            // If both players have shot, increment round and reset
+            if (shotsInRound === 2) {
+                currentRound++;
+                shotsInRound = 0;
+            }
+            
             setTimeout(() => {
                 canShoot = true;
             }, 1000);
