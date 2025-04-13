@@ -3,7 +3,7 @@ const ctx = canvas.getContext('2d');
 
 // Game objects
 const leftCastle = {
-    x: 50,
+    x: 10,
     y: 250,
     width: 140,
     height: 150,
@@ -31,9 +31,9 @@ const rightCastle = {
 };
 
 const leftCatapult = {
-    x: 100, // Positioned on left mountain
-    y: 200, // Higher up on the mountain
-    angle: 0, // Start pointing straight
+    x: 50, // Positioned near the left mountain peak
+    y: 170, // Just below the mountain peak (peak is at 150)
+    angle: -45, // Start at -45 degrees
     power: 0,
     maxPower: 150,
     charging: false,
@@ -41,9 +41,9 @@ const leftCatapult = {
 };
 
 const rightCatapult = {
-    x: 700, // Positioned on right mountain
-    y: 200, // Higher up on the mountain
-    angle: 180, // Start pointing straight left
+    x: 750, // Positioned near the right mountain peak
+    y: 170, // Just below the mountain peak (peak is at 150)
+    angle: 225, // Start at 225 degrees (mirrored from -45)
     power: 0,
     maxPower: 150,
     charging: false,
@@ -201,47 +201,41 @@ function drawCastle(castle) {
 function drawCatapult(catapult) {
     // Draw wheels
     ctx.fillStyle = '#4A4A4A';
-    const wheelRadius = 8;
-    const wheelY = catapult.y + 5;
+    const backWheelRadius = 8;
+    const frontWheelRadius = 16; // 2 times bigger than back wheel
+    const floorY = catapult.y + 30; // Position relative to the mountain slope
+    const backWheelY = floorY - backWheelRadius;
+    const frontWheelY = floorY - frontWheelRadius;
     
-    // Left wheel
+    // Determine wheel positions based on which catapult it is
+    const isRightCatapult = catapult === rightCatapult;
+    const backWheelX = catapult.x + (isRightCatapult ? 10 : -10);
+    const frontWheelX = catapult.x + (isRightCatapult ? -10 : 10);
+    
+    // Back wheel (smaller)
     ctx.beginPath();
-    ctx.arc(catapult.x - 15, wheelY, wheelRadius, 0, Math.PI * 2);
+    ctx.arc(backWheelX, backWheelY, backWheelRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#333';
     ctx.stroke();
     
-    // Right wheel
-    ctx.beginPath();
-    ctx.arc(catapult.x + 15, wheelY, wheelRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.stroke();
-    
-    // Draw wheel spokes
+    // Draw back wheel spokes
     ctx.strokeStyle = '#333';
     for (let i = 0; i < 8; i++) {
         const angle = (i * Math.PI) / 4;
-        // Left wheel spokes
         ctx.beginPath();
-        ctx.moveTo(catapult.x - 15 + Math.cos(angle) * wheelRadius, wheelY + Math.sin(angle) * wheelRadius);
-        ctx.lineTo(catapult.x - 15 - Math.cos(angle) * wheelRadius, wheelY - Math.sin(angle) * wheelRadius);
-        ctx.stroke();
-        
-        // Right wheel spokes
-        ctx.beginPath();
-        ctx.moveTo(catapult.x + 15 + Math.cos(angle) * wheelRadius, wheelY + Math.sin(angle) * wheelRadius);
-        ctx.lineTo(catapult.x + 15 - Math.cos(angle) * wheelRadius, wheelY - Math.sin(angle) * wheelRadius);
+        ctx.moveTo(backWheelX + Math.cos(angle) * backWheelRadius, backWheelY + Math.sin(angle) * backWheelRadius);
+        ctx.lineTo(backWheelX - Math.cos(angle) * backWheelRadius, backWheelY - Math.sin(angle) * backWheelRadius);
         ctx.stroke();
     }
     
     // Draw base
     ctx.fillStyle = '#4A4A4A';
-    ctx.fillRect(catapult.x - 20, catapult.y - 5, 40, 10);
+    ctx.fillRect(backWheelX - 20, backWheelY - 5, 40, 10);
     
     // Draw cannon body
     ctx.save();
-    ctx.translate(catapult.x, catapult.y);
+    ctx.translate(backWheelX, backWheelY - 5);
     ctx.rotate(catapult.angle * Math.PI / 180);
     
     // Cannon barrel
@@ -254,21 +248,86 @@ function drawCatapult(catapult) {
     
     ctx.restore();
     
+    // Front wheel (larger) - drawn last to appear in front
+    ctx.fillStyle = '#4A4A4A';
+    ctx.beginPath();
+    ctx.arc(frontWheelX, frontWheelY, frontWheelRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+    
+    // Draw front wheel spokes
+    ctx.strokeStyle = '#333';
+    for (let i = 0; i < 8; i++) {
+        const angle = (i * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(frontWheelX + Math.cos(angle) * frontWheelRadius, frontWheelY + Math.sin(angle) * frontWheelRadius);
+        ctx.lineTo(frontWheelX - Math.cos(angle) * frontWheelRadius, frontWheelY - Math.sin(angle) * frontWheelRadius);
+        ctx.stroke();
+    }
+    
     // Draw power meter only when charging
     if (catapult.charging) {
         // Calculate current power in real-time
         const currentPower = Math.min((Date.now() - catapult.chargeStart) / 10, catapult.maxPower);
         
         ctx.fillStyle = 'red';
-        ctx.fillRect(catapult.x - 20, catapult.y - 30, 40, 10);
+        ctx.fillRect(backWheelX - 20, backWheelY - 30, 40, 10);
         ctx.fillStyle = 'green';
-        ctx.fillRect(catapult.x - 20, catapult.y - 30, 40 * (currentPower / catapult.maxPower), 10);
+        ctx.fillRect(backWheelX - 20, backWheelY - 30, 40 * (currentPower / catapult.maxPower), 10);
         
         // Draw power text
         ctx.fillStyle = 'white';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`Power: ${Math.round(currentPower)}`, catapult.x, catapult.y - 35);
+        ctx.fillText(`Power: ${Math.round(currentPower)}`, backWheelX, backWheelY - 35);
+
+        // Draw trajectory prediction
+        const angle = catapult.angle * Math.PI / 180;
+        const barrelLength = 50;
+        const startX = backWheelX + Math.cos(angle) * barrelLength;
+        const startY = backWheelY - 5 + Math.sin(angle) * barrelLength;
+        const power = currentPower / 5;
+        
+        // Simulate trajectory for 1 second
+        let x = startX;
+        let y = startY;
+        let vx = Math.cos(angle) * power;
+        let vy = Math.sin(angle) * power;
+        const gravity = 0.2;
+        const screenMiddle = canvas.width / 2;
+        const fadeStartDistance = 200; // Start fading earlier
+        const dotSpacing = 20; // Space between dots
+        let distanceTraveled = 0;
+        
+        for (let t = 0; t < 60; t++) { // 60 frames = 1 second
+            x += vx;
+            y += vy;
+            vy += gravity;
+            distanceTraveled += Math.sqrt(vx * vx + vy * vy);
+            
+            // Stop if we hit the ground
+            if (y > 350) break;
+            
+            // Only draw a dot at specified intervals
+            if (distanceTraveled >= dotSpacing) {
+                // Calculate opacity based on distance from middle of screen
+                let opacity = 1;
+                if (currentPlayer === 'left' && x > screenMiddle - fadeStartDistance) {
+                    opacity = Math.max(0, 1 - (x - (screenMiddle - fadeStartDistance)) / 150);
+                } else if (currentPlayer === 'right' && x < screenMiddle + fadeStartDistance) {
+                    opacity = Math.max(0, 1 - ((screenMiddle + fadeStartDistance) - x) / 150);
+                }
+                
+                // Draw dot
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.3})`;
+                ctx.fill();
+                
+                distanceTraveled = 0; // Reset distance counter
+            }
+        }
     }
 }
 
@@ -486,17 +545,17 @@ function gameLoop() {
         // Add snow cap
         ctx.fillStyle = 'white';
         ctx.beginPath();
-        ctx.moveTo(x + width/2 - 20, 300 - height + 20);
+        ctx.moveTo(x + width/2 - 30, 300 - height + 30);
         ctx.lineTo(x + width/2, 300 - height);
-        ctx.lineTo(x + width/2 + 20, 300 - height + 20);
+        ctx.lineTo(x + width/2 + 30, 300 - height + 30);
         ctx.closePath();
         ctx.fill();
     }
 
     // Draw left mountain
-    drawMountain(0, 200, 150);
+    drawMountain(-100, 300, 200);
     // Draw right mountain
-    drawMountain(600, 200, 150);
+    drawMountain(600, 300, 200);
     
     // Draw ground layers
     // Brown ground
@@ -578,8 +637,13 @@ document.addEventListener('keyup', (e) => {
             // Calculate position at the tip of the cannon barrel
             const angle = currentCatapult.angle * Math.PI / 180;
             const barrelLength = 50; // Total length of the barrel (40 + 10 for the tip)
+            const floorY = currentCatapult.y + 30;
+            const backWheelRadius = 8;
+            const cannonBaseY = floorY - backWheelRadius - 5;
+            
+            // Calculate the position of the cannon tip
             const flashX = currentCatapult.x + Math.cos(angle) * barrelLength;
-            const flashY = currentCatapult.y + Math.sin(angle) * barrelLength;
+            const flashY = cannonBaseY + Math.sin(angle) * barrelLength;
             
             // Create muzzle flash at the tip
             muzzleFlashes.push(new MuzzleFlash(flashX, flashY, currentCatapult.angle));
